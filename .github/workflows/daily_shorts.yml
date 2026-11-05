@@ -1,0 +1,44 @@
+name: Daily Japanese Shorts Automation
+
+on:
+  schedule:
+    # Berjalan otomatis setiap hari pukul 11:00 WIB (04:00 UTC)
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Memungkinkan uji coba klik manual kapan saja
+
+permissions:
+  contents: write
+
+jobs:
+  generate_and_upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@main
+
+      - name: Setup Sistem Operasi, Font Jepang & FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng fonts-noto-cjk python3-pip
+
+      - name: Install Library Python Terbaru
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install --upgrade pillow edge-tts gTTS google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
+
+      - name: Jalankan Agentic AI Pembuat & Pengunggah Video Shorts
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          python3 main.py
+
+      - name: Auto-Commit State & Heartbeat (Anti-Kadaluarsa)
+        run: |
+          git config --local user.email "bot@github-actions.local"
+          git config --local user.name "Autonomous Shorts Agent"
+          git add -A || true
+          git diff --staged --quiet || git commit -m "chore: daily state & heartbeat"
+          git push || true
